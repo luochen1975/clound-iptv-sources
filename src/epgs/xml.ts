@@ -6,6 +6,34 @@ export interface XmlNodeWithAttributes {
   [key: string]: unknown;
 }
 
+export type XmlTextNode = string | XmlNodeWithAttributes | Array<string | XmlNodeWithAttributes>;
+
+export interface XmltvProgrammeNode extends XmlNodeWithAttributes {
+  $?: {
+    start?: string;
+    stop?: string;
+    channel?: string;
+    [key: string]: string | undefined;
+  };
+  title?: XmlTextNode;
+  desc?: XmlTextNode;
+}
+
+export interface XmltvChannelNode extends XmlNodeWithAttributes {
+  $?: {
+    id?: string;
+    name?: string;
+    [key: string]: string | undefined;
+  };
+  name?: string;
+  'display-name'?: XmlTextNode;
+}
+
+export interface XmltvNode {
+  channel?: XmltvChannelNode | XmltvChannelNode[];
+  programme?: XmltvProgrammeNode | XmltvProgrammeNode[];
+}
+
 const XML_PARSE_OPTIONS: ParserOptions = {
   async: false,
   attrkey: '$',
@@ -73,4 +101,23 @@ export function readXmlText(node: unknown): string {
 export function readXmlAttr(node: XmlNodeWithAttributes | null | undefined, name: string): string {
   const value = node?.$?.[name];
   return typeof value === 'string' ? value.trim() : '';
+}
+
+export function readXmltvChannelName(node: XmltvChannelNode | null | undefined): string {
+  const displayName = readXmlText(node?.['display-name']);
+  if (displayName) return displayName;
+
+  const nameFromAttr = readXmlAttr(node, 'name');
+  if (nameFromAttr) return nameFromAttr;
+
+  return node?.name?.trim() ?? '';
+}
+
+export function readXmltvProgrammeTitle(node: XmltvProgrammeNode | null | undefined): string {
+  return readXmlText(node?.title);
+}
+
+export function parseXmltvRoot(xml: string): XmltvNode | null {
+  const parsed = parseXmlDocument<{ tv?: XmltvNode }>(xml);
+  return parsed?.tv ?? null;
 }

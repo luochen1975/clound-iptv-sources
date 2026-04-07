@@ -16,39 +16,18 @@ import { mkdir } from 'fs/promises';
 import {
   buildXmlDocument,
   normalizeXmlList,
-  parseXmlDocument,
   readXmlAttr,
-  readXmlText,
-  type XmlNodeWithAttributes,
+  readXmltvChannelName,
+  readXmltvProgrammeTitle,
+  parseXmltvRoot,
+  type XmltvChannelNode,
+  type XmltvNode,
+  type XmltvProgrammeNode,
 } from './xml';
-
-type EpgPwTvNode = {
-  channel?: EpgPwChannelNode | EpgPwChannelNode[];
-  programme?: EpgPwProgrammeNode | EpgPwProgrammeNode[];
-};
 
 interface EpgPwChannel {
   id: string;
   name: string;
-}
-
-type EpgPwTextNode = string | XmlNodeWithAttributes | Array<string | XmlNodeWithAttributes>;
-
-interface EpgPwChannelNode extends XmlNodeWithAttributes {
-  $?: {
-    id?: string;
-  };
-  'display-name'?: EpgPwTextNode | EpgPwTextNode[];
-}
-
-interface EpgPwProgrammeNode extends XmlNodeWithAttributes {
-  $?: {
-    start?: string;
-    stop?: string;
-    channel?: string;
-  };
-  title?: EpgPwTextNode | EpgPwTextNode[];
-  desc?: EpgPwTextNode | EpgPwTextNode[];
 }
 
 export interface PWEpgJson {
@@ -145,8 +124,7 @@ function parsePwEpgXml(xml: string): {
   channels: EpgPwChannelNode[];
   programmes: EpgPwProgrammeNode[];
 } {
-  const parsed = parseXmlDocument<{ tv?: EpgPwTvNode }>(xml);
-  const tv = parsed?.tv;
+  const tv = parseXmltvRoot(xml) as XmltvNode | null;
   if (!tv) {
     return { channels: [], programmes: [] };
   }
@@ -213,7 +191,7 @@ export async function buildEpgPwXml(batchSize = 10, delayMs = 300): Promise<stri
           }
         }
         const currentChannel = chList[0];
-        const currentChannelName = readXmlText(currentChannel?.['display-name']).toLowerCase();
+        const currentChannelName = readXmltvChannelName(currentChannel).toLowerCase();
         const json: EpgChannelJson = {
           channel: currentChannelName,
           epg_data: progList
@@ -225,7 +203,7 @@ export async function buildEpgPwXml(batchSize = 10, delayMs = 300): Promise<stri
               return {
                 start: formatTime(utcDate(start)),
                 end: formatTime(utcDate(stop)),
-                title: readXmlText(prog.title),
+                title: readXmltvProgrammeTitle(prog),
               };
             })
             .filter((item): item is EpgChannelJson['epg_data'][number] => item !== null),

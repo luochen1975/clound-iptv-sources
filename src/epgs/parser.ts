@@ -5,10 +5,12 @@
 
 import {
   normalizeXmlList,
-  parseXmlDocument,
   readXmlAttr,
-  readXmlText,
-  type XmlNodeWithAttributes,
+  readXmltvChannelName,
+  readXmltvProgrammeTitle,
+  parseXmltvRoot,
+  type XmltvChannelNode,
+  type XmltvProgrammeNode,
 } from './xml';
 
 export interface EpgProgrammeItem {
@@ -38,35 +40,15 @@ function parseXmltvTime(
   return { date, start: startTime, end: endTime };
 }
 
-type XmlTextNode = string | XmlNodeWithAttributes | Array<string | XmlNodeWithAttributes>;
-
-function pickTitle(programme: ParsedProgramme): string {
-  return readXmlText(programme.title);
-}
-
 /** 将频道名转为安全文件名（去掉非法字符） */
 export function sanitizeChannelFileName(channel: string): string {
   return channel.replace(/[/\\:*?"<>|]/g, '_').trim() || 'channel';
 }
 
-type ParsedProgramme = XmlNodeWithAttributes & {
-  $?: {
-    start?: string;
-    stop?: string;
-    channel?: string;
-  };
-  title?: XmlTextNode;
-};
+type ParsedProgramme = XmltvProgrammeNode;
 type ChannelId = string;
 type ChannelName = string;
-type ChannelFromXml = XmlNodeWithAttributes & {
-  $?: {
-    id?: string;
-    name?: string;
-  };
-  name?: string;
-  'display-name'?: XmlTextNode;
-};
+type ChannelFromXml = XmltvChannelNode;
 type ParsedChannel = Record<ChannelId, ChannelName>;
 
 function toProgrammeList(programme: unknown): ParsedProgramme[] {
@@ -74,11 +56,7 @@ function toProgrammeList(programme: unknown): ParsedProgramme[] {
 }
 
 function pickChannelName(channel: ChannelFromXml): string {
-  const displayName = readXmlText(channel['display-name']);
-  if (displayName) return displayName;
-  const nameFromAttr = readXmlAttr(channel, 'name');
-  if (nameFromAttr) return nameFromAttr;
-  return channel.name?.trim() ?? '';
+  return readXmltvChannelName(channel);
 }
 
 function toChannelList(channel: unknown): ParsedChannel {
@@ -98,8 +76,7 @@ function toChannelList(channel: unknown): ParsedChannel {
 export function parseEpgXml(
   xml: string
 ): Array<{ date: string; channel: string; item: EpgProgrammeItem }> {
-  const parsed = parseXmlDocument<{ tv?: { programme?: unknown; channel?: unknown } }>(xml);
-  const tv = parsed?.tv;
+  const tv = parseXmltvRoot(xml);
   if (!tv) return [];
 
   if (!tv.channel) {
@@ -117,7 +94,7 @@ export function parseEpgXml(
     const startAttr = readXmlAttr(p, 'start');
     const stopAttr = readXmlAttr(p, 'stop');
     const time = parseXmltvTime(startAttr, stopAttr);
-    const title = pickTitle(p);
+    const title = readXmltvProgrammeTitle(p);
     if (!channelId || !time) {
       continue;
     }
