@@ -25,6 +25,7 @@ import {
   type XmltvNode,
   type XmltvProgrammeNode,
 } from './xml';
+import { createSubDirectory } from '../file';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -168,7 +169,7 @@ export async function buildEpgPwXml(batchSize = 10, delayMs = 300): Promise<stri
   const channelNodes: XmltvChannelNode[] = [];
   const programmeNodes: XmltvProgrammeNode[] = [];
   // const epgDir = makeEpgDir();
-  const basePath = path.join(__dirname, '../../m3u/epg/pw-7');
+  const basePath = await createSubDirectory('./m3u/epg/pw-7');
 
   for (const date of dates) {
     console.log(`[EPG.PW] Fetching EPG for date ${date} ...`);
